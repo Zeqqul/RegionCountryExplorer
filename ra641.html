@@ -1,0 +1,450 @@
+<!-- @author ra641 -->
+<!-- This website allows a user to select a continent and it displays information about each country within that continent as well as allow a user to search for a country and other additional information about the region -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <title>COMP5380 A1 - JQuery & AJAX</title>
+    <script>
+      $(document).ready(function () {
+        $.getJSON(
+          "https://www.cs.kent.ac.uk/people/staff/yh/api/country-data/countries/regions",
+          function (continents) {
+            for (let i = 0; i < continents.length; i++) {
+              $("#Regions").append(
+                '<option value="' +
+                  continents[i] +
+                  '">' +
+                  continents[i] +
+                  "</option>"
+              );
+            }
+          }
+        );
+        appendTable();
+        $("#Regions").change(function () {
+          appendTable();
+        });
+      });
+      function appendTable() {
+        var selectedValue = $("#Regions").val();
+        $.getJSON(
+          `https://www.cs.kent.ac.uk/people/staff/yh/api/country-data/countries/region/${selectedValue}`,
+          function (countries) {
+            $(".removable").remove();
+            for (let i = 0; i < countries.length; i++) {
+              $("#tableA").append(`
+                          <tr class="removable">
+                              <td>${countries[i].code}</td>
+                              <td>${countries[i].name}</td>
+                              <td><img src="${
+                                countries[i].flag
+                              }" alt="Flag"></td>
+                              <td>${nullCapital(countries[i])}</td>
+                              <td>${countries[i].population}</td>
+                              <td>${calculatePopulationDensity(
+                                countries[i]
+                              )}</td>
+                              <td>${nullArea(countries[i])}</td>
+                          </tr>
+                      `);
+            }
+            $("#tableB").append(`
+                      <tr class="removable">
+                          <td>${countries.length}</td>
+                          <td>${getLargestCountry(countries, "area")}</td>
+                          <td>${getLargestCountry(countries, "population")}</td>
+                      </tr>
+                  `);
+            search(countries);
+            attachCollapsibleListeners();
+          }
+        );
+      }
+      function calculatePopulationDensity(input) {
+        return input.population && input.area
+          ? (input.population / input.area).toFixed(1)
+          : "N/A";
+      }
+
+      function getLargestCountry(countries, currPopulation) {
+        if (!countries || countries.length === 0) {
+          return "N/A";
+        }
+        let largestCountry = countries[0];
+
+        countries.forEach((currCountry) => {
+          if (
+            currCountry[currPopulation] &&
+            largestCountry[currPopulation] < currCountry[currPopulation]
+          ) {
+            largestCountry = currCountry; 
+          }
+        });
+
+        return largestCountry && largestCountry["name"]
+          ? largestCountry["name"]
+          : "N/A";
+      }
+
+      function nullCapital(input) {
+        if (!input.capital) {
+          return "None";
+        }
+        return input.capital;
+      }
+
+      function nullArea(input) {
+        if (!input.area) {
+          return "N/A";
+        }
+        return input.area;
+      }
+
+      function search(countries) {
+        $("#searchButton").click(function () {
+          var selectedValue = $("#Regions").val();
+          var searchCountry = $("#search").val();
+
+          if (selectedValue === null || searchCountry === null) {
+            return;
+          }
+
+          var selectedValueLowerCase = selectedValue.toLowerCase();
+          var searchCountryLowerCase = searchCountry.toLowerCase();
+          var filteredCountries = [];
+          var filteredCapitals = [];
+
+          var byCountryName = countries.filter(function (continents) {
+            if (continents.region.toLowerCase() === selectedValueLowerCase) {
+              if (searchCountryLowerCase === "") {
+                return true;
+              } else {
+                return (
+                  continents.name
+                    .toLowerCase()
+                    .includes(searchCountryLowerCase) &&
+                  !continents.capital
+                    .toLowerCase()
+                    .includes(searchCountryLowerCase)
+                );
+              }
+            }
+            return false;
+          });
+
+          var byCapital = countries.filter(function (continents) {
+            if (continents.region && continents.capital) {
+              return (
+                continents.region.toLowerCase() === selectedValueLowerCase &&
+                continents.capital
+                  .toLowerCase()
+                  .includes(searchCountryLowerCase)
+              );
+            } else {
+              return false;
+            }
+          });
+
+          filteredCountries = filteredCountries.concat(
+            byCountryName,
+            byCapital
+          );
+          filteredCapitals = filteredCapitals.concat(byCountryName, byCapital);
+
+          $(".removable").remove();
+
+          filteredCountries &&
+            filteredCapitals.forEach(function (continents) {
+              $("#tableA").append(`
+                      <tr class="removable">
+                          <td>${continents.code}</td>
+                          <td>${continents.name}</td>
+                          <td><img src="${continents.flag}" alt="Flag"></td>
+                          <td>${continents.capital}</td>
+                          <td>${continents.population}</td>
+                          <td>${calculatePopulationDensity(continents)}</td>
+                          <td>${continents.area}</td>
+                      `);
+            });
+          $("#tableB").append(`
+                      <tr class="removable">
+                          <td>${countries.length}</td>
+                          <td>${getLargestCountry(countries, "area")}</td>
+                          <td>${getLargestCountry(countries, "population")}</td>
+                      </tr>
+                  `);
+        });
+      }
+
+      function attachCollapsibleListeners() {
+        var coll = document.getElementsByClassName("collapsible");
+        for (var i = 0; i < coll.length; i++) {
+          coll[i].addEventListener("click", function () {
+            this.classList.toggle("active");
+            var content = this.nextElementSibling;
+            if (content.style.display === "block") {
+              content.style.display = "none";
+            } else {
+              content.style.display = "block";
+            }
+          });
+        }
+      }
+    </script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Tilt+Neon&display=swap");
+      body {
+        background-color: #000000;
+        font-family: "Tilt Neon", sans-serif;
+        color: white;
+        margin: 0;
+        padding: 0;
+      }
+
+      h1 {
+        text-align: center;
+        padding: 20px;
+        letter-spacing: 2px;
+      }
+
+      table {
+        width: 95%;
+        max-width: 100%;
+        text-align: left;
+        margin-top: 20px;
+        background-color: rgb(74, 68, 68);
+        float: left;
+        border: 2px solid transparent;
+      }
+
+      #tableA img {
+        max-width: 50px;
+        max-height: 80px;
+        align-content: center;
+        text-align: center;
+      }
+
+      th {
+        background-color: #0b053e;
+      }
+      tr:nth-child(even) {
+        background-color: #36373c;
+      }
+
+      tr:nth-child(odd) {
+        background-color: rgb(74, 68, 68);
+      }
+
+      td:hover {
+        background-color: #697075;
+      }
+
+      #tableBContainer {
+        text-align: left;
+        align-content: left;
+      }
+
+      #tableB {
+        width: 25%;
+        max-width: 40%;
+        margin: 0 auto;
+        margin-top: 20px;
+        float: left;
+      }
+
+      select {
+        width: 225px;
+        max-width: 300px;
+        height: 50px;
+        padding: 10px;
+        font-size: 1.2rem;
+        background-color: #242323;
+        color: white;
+        border: none;
+        margin: auto;
+        display: block;
+        border: 2px solid rgb(74, 68, 68);
+        font-family: "Tilt Neon", sans-serif;
+        align-self: center;
+      }
+
+      select:hover {
+        border: 2px solid rgb(74, 68, 68);
+        border-radius: 10px;
+      }
+
+      #searchContainer {
+        float: right;
+      }
+
+      .search-currCountry {
+        display: flex;
+        align-items: center;
+      }
+
+      #search {
+        width: 250px;
+        max-width: 500px;
+        height: 50px;
+        box-sizing: border-box;
+        background-color: #242323;
+        color: white;
+        font-family: "Tilt Neon", sans-serif;
+        border: 2px solid rgb(74, 68, 68);
+        margin-left: 20px;
+      }
+
+      #search:hover {
+        border: 2px solid rgb(74, 68, 68);
+        border-radius: 10px;
+      }
+
+      #searchButton {
+        background-color: #0b053e;
+        color: white;
+        padding: 0;
+        border: 1px solid rgb(251, 249, 249);
+        cursor: pointer;
+        width: 100px;
+        max-width: 120px;
+        height: 50px;
+        font-family: "Tilt Neon", sans-serif;
+      }
+
+      #searchButton:hover {
+        background-color: #07032b;
+        border: 1px solid white;
+        border-radius: 100px;
+      }
+
+      #Regions + input {
+        margin-left: 10px;
+      }
+
+      label {
+        display: block;
+        padding-left: 0.3%;
+      }
+
+      ::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: rgb(21, 19, 19);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: rgb(74, 68, 68);
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: #697075;
+      }
+
+      #page-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 20px;
+      }
+
+      #searchContainer {
+        width: 100%;
+        max-width: 600px;
+        text-align: center;
+      }
+
+      #tableBContainer {
+        text-align: center;
+      }
+
+      table {
+        width: 100%;
+        max-width: 95%;
+      }
+
+      #tableB {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+        margin-top: 20px;
+      }
+
+      .collapsible {
+        background-color: #242323;
+        color: white;
+        cursor: pointer;
+        padding: 18px;
+        width: 39%;
+        max-width: 40%;
+        border: none;
+        text-align: left;
+        outline: none;
+        font-size: 25px;
+        margin-top: 20px;
+        font-family: "Tilt Neon", sans-serif;
+      }
+
+      .active,
+      .collapsible:hover {
+        background-color: rgb(74, 68, 68);
+      }
+
+      .content {
+        padding: 0 18px;
+        display: none;
+        overflow: hidden;
+        background-color: black;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="page-container">
+      <h1>Regions Of Interest</h1>
+      <div id="searchContainer">
+        <div class="search-currCountry">
+          <label for="Regions">Select a region:</label>
+          <select id="Regions" onchange="appendTable()">
+            <option selected disabled>Region</option>
+          </select>
+          <input type="text" id="search" placeholder="Search for a country" />
+          <button id="searchButton">Search</button>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="collapsible">Instructions</button>
+    <div class="content">
+      <p>
+        Select a continent to learn more about the countries within the
+        continent or search for a country within the region.
+      </p>
+    </div>
+
+    <div id="tableBContainer">
+      <table id="tableB">
+        <tr>
+          <th>Total Countries</th>
+          <th>Largest Country</th>
+          <th>Most Populated Country</th>
+        </tr>
+      </table>
+    </div>
+    <table id="tableA">
+      <tr class="header-row">
+        <th>Code</th>
+        <th>Country Name</th>
+        <th>Flag</th>
+        <th>Capital</th>
+        <th>Population</th>
+        <th>Population Density</th>
+        <th>Area</th>
+      </tr>
+    </table>
+  </body>
+</html>
